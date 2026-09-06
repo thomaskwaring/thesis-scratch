@@ -1,4 +1,5 @@
 import Mathlib.Order.CompleteLattice.Basic
+import Mathlib.Data.Set.Lattice
 
 variable {α : Type*} [CompleteLattice α]
 
