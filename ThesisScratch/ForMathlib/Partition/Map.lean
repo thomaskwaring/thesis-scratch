@@ -4,6 +4,8 @@ import ThesisScratch.ForMathlib.Partition.Basic
 
 variable {α β : Type*}
 
+open Function
+
 namespace Partition
 
 def mapInjective [CompleteLattice α] [CompleteLattice β] {f : α → β}
@@ -70,14 +72,44 @@ lemma mapSetInjective_rel_map_iff {f : α → β} (hf : f.Injective) {s : Set α
   simp [Relation.map_apply]
   grind
 
+def comapSetSurjective {f : α → β} (hf : f.Surjective) {s : Set β} (P : Partition s) :
+    Partition (f ⁻¹' s) := P.mapInjective hf.preimage_injective (by simp) (by simp)
+
+@[simp] lemma coe_comapSetSurjective {f : α → β} (hf : f.Surjective) {s : Set β} (P : Partition s) :
+    (P.comapSetSurjective hf : Set (Set α)) = {f ⁻¹' t | t ∈ P} := rfl
+
+lemma mem_comapSetSurjective {f : α → β} (hf : f.Surjective) {s : Set β} (P : Partition s)
+    (t : Set α) : t ∈ P.comapSetSurjective hf ↔ ∃ t' ∈ P, f ⁻¹' t' = t := Iff.rfl
+
+@[simp] lemma preimage_mem_comapSetSurjective_iff {f : α → β} (hf : f.Surjective) {s : Set β}
+    (P : Partition s) {t : Set β} : f ⁻¹' t ∈ P.comapSetSurjective hf ↔ t ∈ P := by
+  refine ⟨?_, (⟨t, ·, rfl⟩)⟩
+  intro ⟨t', ht', heq⟩
+  rwa [← hf.preimage_injective.eq_iff.mp heq]
+
+@[simp] lemma rel_comapSetSurjective {f : α → β} (hf : f.Surjective) {s : Set β} (P : Partition s) :
+    (P.comapSetSurjective hf).Rel = (P.Rel on f) := by
+  ext x y
+  simp [Rel, mem_comapSetSurjective]
+
+@[simp]
+lemma partOf_comapSetSurjective {f : α → β} (hf : f.Surjective) {s : Set β} (P : Partition s)
+    (x : α) : (P.comapSetSurjective hf).partOf x = f ⁻¹' P.partOf (f x) := by
+  ext y
+  simp
+
 def mapOrderIso [CompleteLattice α] [CompleteLattice β] (e : α ≃o β) {u : α}
     (P : Partition u) : Partition (e u) := P.mapInjective e.injective (by simp) e.map_inf
 
 @[simp] lemma coe_mapOrderIso [CompleteLattice α] [CompleteLattice β] (e : α ≃o β) {u : α}
     (P : Partition u) : (P.mapOrderIso e : Set β) = e '' P := rfl
 
-@[simp] lemma mem_mapOrderIso [CompleteLattice α] [CompleteLattice β] (e : α ≃o β) {u : α}
+lemma mem_mapOrderIso [CompleteLattice α] [CompleteLattice β] (e : α ≃o β) {u : α}
     (P : Partition u) (b : β) : b ∈ P.mapOrderIso e ↔ ∃ a ∈ P, e a = b := Iff.rfl
+
+lemma mem_mapOrderIso' [CompleteLattice α] [CompleteLattice β] (e : α ≃o β) {u : α}
+    (P : Partition u) (b : β) : b ∈ P.mapOrderIso e ↔ e.symm b ∈ P := by
+  simp [mem_mapOrderIso, ← e.eq_symm_apply]
 
 def mapOrderIsoTop [CompleteLattice α] [CompleteLattice β] (e : α ≃o β)
     (P : Partition (⊤ : α)) : Partition (⊤ : β) := (P.mapOrderIso e).copy e.map_top
@@ -268,5 +300,74 @@ lemma coe_pi {ι : Type u} [DecidableEq ι] {α : ι → Type u} [∀ i, Order.F
     (pi P : Set _) = {Pi.botSingle i a | (i : ι) (a ∈ P i)} := by
   simp only [pi, iSupOfDisjoint, SetLike.coe, mapInjective]
   ext x; simp
+
+section InjOn
+
+open Set
+
+lemma subset_Iic [CompleteLattice α] {u : α} (P : Partition u) : ↑P ⊆ Iic u :=
+  fun _ => P.le_of_mem
+
+def mapInjOn [CompleteLattice α] [CompleteLattice β] {u : α} {f : α → β}
+    (hf : (Iic u).InjOn f) (hf_sSup : ∀ s ⊆ Iic u, f (sSup s) = sSup (f '' s))
+    (hf_inf : ∀ a ≤ u, ∀ a' ≤ u, f (a ⊓ a') = f a ⊓ f a') (P : Partition u) : Partition (f u) where
+  parts := f '' P
+  sSupIndep' := by
+    rintro _ ⟨a, ha, rfl⟩
+    have hdiff : f '' (P \ {a}) = f '' P \ {f a} := by
+      rw [← image_singleton]
+      exact (hf.mono P.subset_Iic).image_sdiff_subset (singleton_subset_iff.mpr ha)
+    have h : ↑P \ {a} ⊆ Iic u := sdiff_subset.trans P.subset_Iic
+    rw [← hdiff, ← hf_sSup _ h, disjoint_iff, ← hf_inf _ (P.le_of_mem ha) _ (sSup_le_iff.mpr h),
+      disjoint_iff.mp (P.sSupIndep ha), ← sSup_empty, hf_sSup ∅ bot_le, image_empty, sSup_empty]
+  bot_notMem' := by
+    have : f ⊥ = ⊥ := by simp [← sSup_empty, hf_sSup]
+    intro ⟨a, ha, heq⟩
+    obtain rfl : a = ⊥ := hf (P.le_of_mem ha) bot_le (heq.trans this.symm)
+    exact P.bot_notMem ha
+  sSup_eq' := by rw [←hf_sSup _ P.subset_Iic, P.sSup_eq]
+
+@[simp] lemma mapInjOn_coe [CompleteLattice α] [CompleteLattice β] {u : α} {f : α → β}
+    (hf : (Iic u).InjOn f) (hf_sSup : ∀ s ⊆ Iic u, f (sSup s) = sSup (f '' s))
+    (hf_inf : ∀ a ≤ u, ∀ a' ≤ u, f (a ⊓ a') = f a ⊓ f a') (P : Partition u) :
+    (P.mapInjOn hf hf_sSup hf_inf : Set β) = f '' P := rfl
+
+@[simp] lemma mem_mapInjOn [CompleteLattice α] [CompleteLattice β] {u : α} {f : α → β}
+    (hf : (Iic u).InjOn f) (hf_sSup : ∀ s ⊆ Iic u, f (sSup s) = sSup (f '' s))
+    (hf_inf : ∀ a ≤ u, ∀ a' ≤ u, f (a ⊓ a') = f a ⊓ f a') (P : Partition u) (b : β) :
+    b ∈ P.mapInjOn hf hf_sSup hf_inf ↔ ∃ a ∈ P, f a = b := Iff.rfl
+
+def mapSetInjOn {s : Set α} {f : α → β} (hf : s.InjOn f) (P : Partition s) :
+    Partition (f '' s) := P.mapInjOn hf.image (by simp [Set.image_sUnion])
+      (fun _ h _ h' => hf.image_inter h h')
+
+@[simp] lemma mapSetInjOn_coe {s : Set α} {f : α → β} (hf : s.InjOn f) (P : Partition s) :
+    (P.mapSetInjOn hf : Set (Set β)) = {f '' t | t ∈ P} := rfl
+
+@[simp] lemma mem_mapSetInjOn {s : Set α} {f : α → β} (hf : s.InjOn f) (P : Partition s)
+    {t : Set β} : t ∈ P.mapSetInjOn hf ↔ ∃ t' ∈ P, f '' t' = t := Iff.rfl
+
+@[simp] lemma mapSetInjOn_rel {s : Set α} {f : α → β} (hf : s.InjOn f) (P : Partition s) :
+    (P.mapSetInjOn hf).Rel = Relation.Map P.Rel f f := by
+  ext x y
+  simp [Rel, Relation.map_apply]
+  grind
+
+lemma mapSetInjOn_map_rel {s : Set α} {f : α → β} (hf : s.InjOn f) (P : Partition s) {x y : α}
+    (h : P.Rel x y) : (P.mapSetInjOn hf).Rel (f x) (f y) := by
+  rw [mapSetInjOn_rel, Relation.map_apply]
+  use x, y
+
+lemma mapSetInjOn_map_rel_iff_of_mem {s : Set α} {f : α → β} (hf : s.InjOn f) (P : Partition s)
+    {x y : α} (hx : x ∈ s) (hy : y ∈ s) : (P.mapSetInjOn hf).Rel (f x) (f y) ↔ P.Rel x y := by
+  refine ⟨?_, P.mapSetInjOn_map_rel hf⟩
+  rw [mapSetInjOn_rel, Relation.map_apply]
+  intro ⟨x', y', h, hx', hy'⟩
+  convert h <;> apply hf <;> grind [Rel.left_mem, Rel.right_mem]
+
+def comapSetSubsetRange {s : Set β} {f : α → β} (hf : s ⊆ range f) (P : Partition s) :
+    Partition (f ⁻¹' s) := P.mapInjOn (injOn_preimage <| Iic_subset_Iic.mpr hf) (by simp) (by simp)
+
+end InjOn
 
 end Partition

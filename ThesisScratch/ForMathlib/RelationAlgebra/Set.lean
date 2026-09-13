@@ -151,9 +151,9 @@ lemma rdom_le_conv_mul_self (x : L) : rdom x ≤ xᵒ * x := by
   refine (mul_left_le (ldom x) x).antisymm ?_
   calc
     x = x ⊓ x * 1 := by simp
-    _ ≤ x ⊓ x * ⊤ := by gcongr; grind
+    _ ≤ x ⊓ x * ⊤ := by gcongr; exact le_top
     _ ≤ (1 ⊓ x * ⊤ * xᵒ) * x := by convert right_modular 1 x (x * ⊤) using 2; simp
-    _ ≤ (1 ⊓ x * ⊤ * ⊤) * x := by gcongr; grind
+    _ ≤ (1 ⊓ x * ⊤ * ⊤) * x := by gcongr; exact le_top
     _ = ldom x * x := by simp [ldom, inf_comm]
 
 @[simp] lemma self_mul_rdom (x : L) : x * rdom x = x := by

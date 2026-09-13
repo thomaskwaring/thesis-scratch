@@ -44,3 +44,31 @@ lemma isCompactElement_iff_of_isAtomistic [Order.Frame α] [IsAtomistic α] (x :
   · rintro ⟨t, ht, rfl⟩
     apply isCompactElement_finsetSup t
     exact fun x hx => (ht x hx).isCompactElement
+
+lemma IsCompactElement.exists_le_finsetSup_of_le_isLUB [SemilatticeSup α] [OrderBot α] {k : α}
+    (hk : IsCompactElement k) {s : Set α} {u : α} (hu : IsLUB s u) (hle : k ≤ u) :
+    ∃ t : Finset α, ↑t ⊆ s ∧ k ≤ t.sup id := by
+  classical
+  have hdir : DirectedOn (· ≤ ·) {x | ∃ t : Finset α, ↑t ⊆ s ∧ x = t.sup id} := by
+    rintro _ ⟨t, ht, rfl⟩ _ ⟨t', ht', rfl⟩
+    use (t ∪ t').sup id
+    grind
+  specialize hk {x | ∃ t : Finset α, ↑t ⊆ s ∧ x = t.sup id} u ⟨⊥, ∅, by simp⟩ hdir
+  simp only [Set.mem_ofPred_eq, ↓existsAndEq, and_true] at hk
+  refine hk ⟨?_, ?_⟩ hle
+  · rintro _ ⟨t, ht, rfl⟩
+    exact Finset.sup_le fun x hx => hu.1 (ht hx)
+  · intro u' hu'
+    refine hu.2 (upperBounds_mono_set ?_ hu')
+    intro x hx
+    use {x}
+    simpa
+
+lemma isCompactElement_iff_exists_le_finsetSup_of_le_isLUB [SemilatticeSup α] [OrderBot α] {k : α} :
+    IsCompactElement k ↔
+      ∀ {s : Set α} {u : α}, IsLUB s u → k ≤ u → ∃ t : Finset α, ↑t ⊆ s ∧ k ≤ t.sup id := by
+  refine ⟨IsCompactElement.exists_le_finsetSup_of_le_isLUB, ?_⟩
+  intro h s u hs hdir hu hle
+  obtain ⟨t, ht, hsup⟩ := h hu hle
+  obtain ⟨x, hx, htx⟩ := t.sup_le_of_le_directed s hs hdir (fun x hx => ⟨x, ht hx, le_rfl⟩)
+  exact ⟨x, hx, hsup.trans htx⟩
