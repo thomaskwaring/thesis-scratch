@@ -33,22 +33,19 @@ instance : MulRightMono α where
 
 @[instance_reducible]
 private def toBooleanAllegory' (α : Type*) [AltAllegory α] : BooleanAllegory' α where
-  elim a b c h := by simp [← sup_eq_left, ← mul_sup, sup_eq_left.mpr h]
   conv := star
   conv_le_iff_le_conv a b := by
-    rw [← sup_eq_left, ← star_involutive b, ← star_sup, star_injective.eq_iff,
-      sup_eq_left, star_involutive b]
+    nth_rw 1 [← sup_eq_left, ← star_involutive b, ← star_sup, star_eq_iff_star_eq, Eq.comm,
+      sup_eq_left]
   conv_mul := star_mul
   mul_sup := mul_sup
   mul_bot a := by
-    nth_grw 1 [eq_bot_iff, ← star_involutive a, bot_le (a := (star a * ⊤)ᶜ), ← compl_top]
-    exact star_mul_compl_le (star a) ⊤
+    grw [eq_bot_iff, ← compl_top, ← star_mul_compl_le (star a)]
+    gcongr <;> simp
   left_modular a b c := by
-    have : IsCompl c cᶜ := by exact isCompl_compl
     nth_grw 1 [← isCompl_compl.le_sup_right_iff_inf_left_le, ← star_mul_compl_le (star a) c,
       star_involutive a, ← mul_sup, sup_comm, ← le_sup_inf, compl_sup_eq_top, inf_top_eq]
-    gcongr
-    exact le_sup_right
+    exact mul_right_mono le_sup_right
 
 instance : BooleanAllegory α := @BooleanAllegory.mk' _ (toBooleanAllegory' α)
 
