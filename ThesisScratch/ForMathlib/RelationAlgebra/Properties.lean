@@ -1,6 +1,8 @@
 import ThesisScratch.ForMathlib.RelationAlgebra.Basic
 import Mathlib.Order.FixedPoints
 
+/-! # Relation-like properties of allegory elements -/
+
 namespace Allegory
 
 variable {L : Type*} [Allegory L]
@@ -9,6 +11,7 @@ open UnionAllegory DivisionAllegory OrderHom
 
 section Properties
 
+/-- Reflexive elements. -/
 class AllRefl (x : L) : Prop where
   one_le' : 1 ≤ x
 
@@ -35,6 +38,7 @@ instance allRefl_one : AllRefl (1 : L) := ⟨le_rfl⟩
 instance allRefl_mul (x y : L) [AllRefl x] [AllRefl y] : AllRefl (x * y) where
   one_le' := by nth_grw 1 [one_le' x, mul_right_ge x y]
 
+/-- Symmetric elements. -/
 class AllSymm (x : L) : Prop where
   conv_eq : xᵒ = x
 
@@ -63,6 +67,7 @@ instance {L : Type*} [UnionAllegory L] {x y : L} [AllSymm x] [AllSymm y] :
     AllSymm (x ⊔ y) where
   conv_eq := by rw [conv_sup x y, conv_eq, conv_eq]
 
+/-- Transitive elements. -/
 class AllTrans (x : L) : Prop where
   mul_self_le : x * x ≤ x
 
@@ -120,13 +125,14 @@ section Closure
 
 variable {L : Type*} [UnionAllegory L]
 
+/-- The universal extension of `x` to a reflexive element. -/
 @[reducible] def reflGen (x : L) := x ⊔ 1
 
-notation:max x "⁼" => reflGen x
+@[inherit_doc] notation:max x "⁼" => reflGen x
 
 instance (x : L) : AllRefl x⁼ := ⟨le_sup_right⟩
 
-@[simp] lemma conv_reflGen (x : L) : x⁼ᵒ = xᵒ⁼ := by simp
+lemma conv_reflGen (x : L) : x⁼ᵒ = xᵒ⁼ := by simp
 
 @[simp] lemma reflGen_inf {L : Type*} [DistribAllegory L] (x y : L) : (x ⊓ y)⁼ = x⁼ ⊓ y⁼ := by
   simp_rw [reflGen, sup_inf_right]
@@ -135,11 +141,11 @@ instance (x : L) : AllRefl x⁼ := ⟨le_sup_right⟩
 
 @[gcongr] lemma reflGen_mono {x y : L} (h : x ≤ y) : x⁼ ≤ y⁼ := sup_le_sup_right h 1
 
-@[simp] lemma reflGen_bot : (⊥ : L)⁼ = 1 := by simp
+lemma reflGen_bot : (⊥ : L)⁼ = 1 := by simp
 
 @[simp] lemma reflGen_allRefl (x : L) [AllRefl x] : x⁼ = x := sup_eq_left.mpr (one_le' x)
 
-@[simp] lemma reflGen_le (x y : L) [AllRefl y] : x⁼ ≤ y ↔ x ≤ y := by simp [one_le' y]
+lemma reflGen_le (x y : L) [AllRefl y] : x⁼ ≤ y ↔ x ≤ y := by simp [one_le' y]
 
 lemma le_reflGen (x : L) : x ≤ x⁼ := le_sup_left
 
@@ -151,9 +157,10 @@ instance (x : L) [AllTrans x] : AllTrans x⁼ where
       and_true, Std.le_refl]
     exact (mul_self_le x).trans le_sup_left
 
+/-- The universal extension of `x` to a symmetric element. -/
 @[reducible] def symmGen (x : L) := x ⊔ xᵒ
 
-notation:max x "ˢ" => symmGen x
+@[inherit_doc] notation:max x "ˢ" => symmGen x
 
 instance (x : L) : AllSymm xˢ := ⟨by simp [sup_comm]⟩
 
@@ -163,9 +170,9 @@ instance (x : L) : AllSymm xˢ := ⟨by simp [sup_comm]⟩
 
 @[gcongr] lemma symmGen_mono {x y : L} (h : x ≤ y) : xˢ ≤ yˢ := by simp_rw [symmGen]; gcongr
 
-@[simp] lemma symmGen_allSymm (x : L) [AllSymm x] : xˢ = x := by simp
+lemma symmGen_allSymm (x : L) [AllSymm x] : xˢ = x := by simp
 
-@[simp] lemma symmGen_le_iff (x y : L) [AllSymm y] : xˢ ≤ y ↔ x ≤ y := by
+lemma symmGen_le_iff (x y : L) [AllSymm y] : xˢ ≤ y ↔ x ≤ y := by
   simp only [sup_le_iff, and_iff_left_iff_imp, conv_le_iff_le_conv, conv_eq y]
   exact id
 
@@ -177,14 +184,15 @@ instance (x : L) [AllRefl x] : AllRefl xˢ := ⟨(one_le' x).trans le_sup_left�
 
 variable {L : Type*} [CompleteAllegory L]
 
-@[simps]
-def stepFun (x : L) : L →o L where
+/-- Auxilliary definition for `transGen`. -/
+@[simps] private def stepFun (x : L) : L →o L where
   toFun y := x ⊔ x * y
   monotone' x y h := by simp only; gcongr
 
+/-- The universal extension of `x` to a transitive element. -/
 def transGen (x : L) := (stepFun x).lfp
 
-notation:max x "⁺" => transGen x
+@[inherit_doc] notation:max x "⁺" => transGen x
 
 lemma le_transGen (x : L) : x ≤ x⁺ := by
   rw [transGen, ←map_lfp]
@@ -268,9 +276,10 @@ lemma transGen_reflGen (x : L) : x⁼⁺ = x⁺⁼ :=
   (transGen_le _ _).mpr (reflGen_mono (le_transGen x)) |>.antisymm <|
     (reflGen_le _ _).mpr (transGen_mono (le_reflGen x))
 
+/-- The universal extension of `x` to a reflexive and transitive element. -/
 def reflTransGen (x : L) : L := x⁺⁼
 
-notation:max x "⋆" => reflTransGen x
+@[inherit_doc] notation:max x "⋆" => reflTransGen x
 
 lemma reflTransGen_eq_transGen_reflGen (x : L) : x⋆ = x⁼⁺ := transGen_reflGen x |>.symm
 
@@ -342,6 +351,7 @@ section Confluence
 
 variable {L : Type*} [CompleteAllegory L]
 
+/-- Elements which commute, in a weak sense. -/
 abbrev WeaklyCommute (x y : L) : Prop := x * y ≤ y * x
 
 lemma WeaklyCommute.mul_le_mul {x y : L} (h : WeaklyCommute x y) : x * y ≤ y * x := h

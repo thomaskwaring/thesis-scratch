@@ -1,11 +1,14 @@
 import ThesisScratch.ForMathlib.RelationAlgebra.Properties
 
+/-! # Set-like allegory elements -/
+
 open Relation Function Set Allegory UnionAllegory DivisionAllegory
 
 namespace Allegory
 
 variable {L : Type*} [Allegory L]
 
+/-- A set-like, or coreflexive element of an allegory. -/
 class AllSet (x : L) : Prop where
   le_one : x ≤ 1
 
@@ -38,8 +41,6 @@ instance {L : Type*} [UnionAllegory L] (x y : L) [AllSet x] [AllSet y] : AllSet 
   le_one := sup_le (le_one x) (le_one y)
 
 instance : AllSet (1 : L) := ⟨le_rfl⟩
-
--- instance [OrderBot L] : AllSet (⊥ : L) := ⟩
 
 instance (x : L) [AllSet x] : AllSymm x :=
   allSymm_of_le_conv <| (le_mul_mul x).trans <| (mul_right_le (x * xᵒ) x).trans (mul_left_le x xᵒ)
@@ -74,8 +75,12 @@ section Domain
 
 variable [OrderTop L]
 
+/-- The left domain of `x` In terms of relations, this is an element `a` of the underlying set so
+that `∃ b, a ~[x] b`. -/
 def ldom (x : L) : L := x * ⊤ ⊓ 1
 
+/-- The right domain of `x`. In terms of relations, this is an element `a` of the underlying set so
+that `∃ b, b ~[x] a`. -/
 def rdom (x : L) : L := ⊤ * x ⊓ 1
 
 instance (x : L) : AllSet (ldom x) where
@@ -266,14 +271,18 @@ section Conditions
 
 variable {L : Type*} [DivisionAllegory L] [OrderTop L]
 
+/-- The weakest precondition for `y` of under the relation `x`, viewed as a transition
+system in function-application order (right-to-left) --- see `Allegory.le_precond_iff`. -/
 abbrev precond (x y : L) : L := (x \\ y * ⊤) ⊓ 1
 
-scoped infix:65 " .\\\\. " => precond
-
-lemma le_precond_iff (x y z : L) [AllSet x] [AllSet z] : x ≤ y .\\. z ↔ ldom (y * x) ≤ z := by
-  simp_rw [le_inf_iff, le_one x, and_true, le_under_iff, ldom_le_iff_le_mul_top]
+@[inherit_doc] scoped infix:65 " .\\\\. " => precond
 
 instance (x y : L) : AllSet (x .\\. y) := ⟨inf_le_right⟩
+
+/-- Viewing `z` as a set, this says in terms of relations that `y .\\. z` is the set of `a` such
+that `∀ b, b ~[y] a → b ∈ z`. -/
+lemma le_precond_iff (x y z : L) [AllSet x] [AllSet z] : x ≤ y .\\. z ↔ ldom (y * x) ≤ z := by
+  simp_rw [le_inf_iff, le_one x, and_true, le_under_iff, ldom_le_iff_le_mul_top]
 
 lemma ldom_mul_precond_le (x y : L) [AllSet y] : ldom (x * (x .\\. y)) ≤ y := by
   rw [←le_precond_iff]
@@ -291,14 +300,18 @@ lemma precond_eq_ldom (x y : L) [AllSet y] : x .\\. y = ldom (x \\ y * ⊤) := b
   rw [le_precond_iff, ldom_le_iff_le_mul_top, ldom_le_ldom_iff, ←le_under_iff,
     under_top_mul_mul_top]
 
+/-- The weakest postcondition for `x` of under the relation `y`, viewed as a transition
+system in function-application order (right-to-left) --- see `Allegory.le_postcond_iff`. -/
 abbrev postcond (x y : L) : L := (⊤ * x // y) ⊓ 1
 
-scoped infix:65 " .//. " => postcond
-
-lemma le_postcond_iff (x y z : L) [AllSet x] [AllSet y] : x ≤ y .//. z ↔ rdom (x * z) ≤ y := by
-  simp_rw [le_inf_iff, le_one x, and_true, le_over_iff, rdom_le_iff_le_top_mul]
+@[inherit_doc] scoped infix:65 " .//. " => postcond
 
 instance (x y : L) : AllSet (x .//. y) := ⟨inf_le_right⟩
+
+/-- Viewing `y` as a set, this says in terms of relations that `y .//. z` is the set of `b` such
+that `∀ b, b ~[z] a → a ∈ y`. -/
+lemma le_postcond_iff (x y z : L) [AllSet x] [AllSet y] : x ≤ y .//. z ↔ rdom (x * z) ≤ y := by
+  simp_rw [le_inf_iff, le_one x, and_true, le_over_iff, rdom_le_iff_le_top_mul]
 
 lemma rdom_postcond_mul_le (x y : L) [AllSet x] : rdom ((x .//. y) * y) ≤ x := by
   rw [←le_postcond_iff]

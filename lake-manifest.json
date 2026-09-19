@@ -15,7 +15,7 @@
    "type": "git",
    "subDir": null,
    "scope": "leanprover",
-   "rev": "bba5e73eb210a0d05d127b0672b21d73188f8de3",
+   "rev": "012cc2f5dddcea6262fa9b6cb16e93b6e6db3e95",
    "name": "cslib",
    "manifestFile": "lake-manifest.json",
    "inputRev": "main",

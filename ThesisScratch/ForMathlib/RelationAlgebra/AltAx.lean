@@ -11,7 +11,8 @@ class AltAllegory (α : Type*) extends BooleanAlgebra α, Monoid α, StarMul α 
 
 namespace AltAllegory
 
-instance {α : Type*} [BooleanAllegory α] : AltAllegory α where
+@[implicit_reducible]
+def ofBooleanAllegory (α : Type*) [BooleanAllegory α] : AltAllegory α where
   star := conv
   star_involutive := conv_conv
   star_mul := conv_mul
@@ -40,13 +41,13 @@ private def toBooleanAllegory' (α : Type*) [AltAllegory α] : BooleanAllegory' 
   conv_mul := star_mul
   mul_sup := mul_sup
   mul_bot a := by
-    grw [eq_bot_iff, ← compl_top, ← star_mul_compl_le (star a)]
-    gcongr <;> simp
+    grw [eq_bot_iff, ← compl_top, ← star_mul_compl_le (star a), star_involutive a,
+      ← le_top (a := star a * ⊤)]
   left_modular a b c := by
     nth_grw 1 [← isCompl_compl.le_sup_right_iff_inf_left_le, ← star_mul_compl_le (star a) c,
-      star_involutive a, ← mul_sup, sup_comm, ← le_sup_inf, compl_sup_eq_top, inf_top_eq]
-    exact mul_right_mono le_sup_right
+      star_involutive a, ← mul_sup, sup_comm, ← le_sup_inf, compl_sup_eq_top, inf_top_eq,
+      @le_sup_right _ _ (star a * c)ᶜ b]
 
-instance : BooleanAllegory α := @BooleanAllegory.mk' _ (toBooleanAllegory' α)
+instance instBooleanAllegory : BooleanAllegory α := @BooleanAllegory.mk' _ (toBooleanAllegory' α)
 
 end AltAllegory

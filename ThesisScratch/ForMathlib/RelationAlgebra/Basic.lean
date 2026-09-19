@@ -1,14 +1,20 @@
-
 import Mathlib.Algebra.Order.Monoid.Unbundled.Basic
 import Mathlib.Tactic.TFAE
 import Mathlib.Order.CompleteBooleanAlgebra
 
+/-! # Allegories and relation algebras -/
+
 open Relation Function Set
 
+/-- A one-object allegory, generalising endorelations on a set. -/
 class Allegory (L : Type*) extends SemilatticeInf L, Monoid L, MulLeftMono L where
+  /-- The converse to a (generalised) relation. -/
   conv : L → L
+  /-- `conv` is its own order adjoint. -/
   conv_le_iff_le_conv (x y : L) : conv x ≤ y ↔ x ≤ conv y
+  /-- `conv` preserves multiplication. -/
   conv_mul (x y : L) : conv (x * y) = conv y * conv x
+  /-- The modular law, governing the interaction of the monoid, converse and lattice structures. -/
   left_modular (x y z : L) : x * y ⊓ z ≤ x * (y ⊓ conv x * z)
 
 namespace Allegory
@@ -17,7 +23,7 @@ attribute [scoped grind .] le_top bot_le inf_le_left inf_le_right le_sup_left le
 
 variable {L : Type*} [Allegory L]
 
-scoped notation:max x "ᵒ" => conv x
+@[inherit_doc] scoped notation:max x "ᵒ" => conv x
 
 lemma conv_conv (x : L) : xᵒᵒ = x :=
   (conv_le_iff_le_conv xᵒ x |>.mpr le_rfl).antisymm (conv_le_iff_le_conv x xᵒ |>.mp le_rfl)
@@ -35,6 +41,7 @@ lemma conv_eq_conv_iff (x y : L) : xᵒ = yᵒ ↔ x = y := by
 @[gcongr]
 lemma conv_mono {x y : L} (h : x ≤ y) : xᵒ ≤ yᵒ := (conv_le_conv_iff x y).mpr h
 
+/-- `conv` is an order isomorphism. -/
 def convIso (L : Type*) [Allegory L] : L ≃o L where
   toFun := conv
   invFun := conv
@@ -45,17 +52,17 @@ def convIso (L : Type*) [Allegory L] : L ≃o L where
 instance : MulRightMono L where
   elim x y z h := by
     simp only [swap]
-    rw [←conv_le_conv_iff, conv_mul, conv_mul]
+    rw [← conv_le_conv_iff, conv_mul, conv_mul]
     exact mul_right_mono (conv_le_conv_iff y z |>.mpr h)
 
-lemma le_mul_top [OrderTop L] (x : L) : x ≤ x * ⊤ := by nth_grw 1 [←mul_one x, le_top (a := 1)]
+lemma le_mul_top [OrderTop L] (x : L) : x ≤ x * ⊤ := by nth_grw 1 [← mul_one x, le_top (a := 1)]
 
-lemma le_top_mul [OrderTop L] (x : L) : x ≤ ⊤ * x := by nth_grw 1 [←one_mul x, le_top (a := 1)]
+lemma le_top_mul [OrderTop L] (x : L) : x ≤ ⊤ * x := by nth_grw 1 [← one_mul x, le_top (a := 1)]
 
 @[simp, scoped grind =] lemma conv_inf (x y : L) : (x ⊓ y)ᵒ = xᵒ ⊓ yᵒ := convIso L |>.map_inf x y
 
 @[simp, scoped grind =] lemma conv_one : (1 : L)ᵒ = 1 := by
-  have : (1 : L)ᵒ * 1 = 1 := by rw [←conv_conv (1ᵒ * 1), conv_mul]; simp
+  have : (1 : L)ᵒ * 1 = 1 := by rw [← conv_conv (1ᵒ * 1), conv_mul]; simp
   simpa using this
 
 @[simp, scoped grind =] lemma conv_bot [OrderBot L] : (⊥ : L)ᵒ = ⊥ := (convIso L).map_bot
@@ -79,8 +86,11 @@ lemma mul_inf_le (x y z : L) : x * (y ⊓ z) ≤ x * y ⊓ x * z := by
 lemma le_mul_mul (x : L) : x ≤ x * xᵒ * x := by
   simpa [mul_assoc] using (left_modular x 1 x).trans (mul_inf_le x 1 (x ᵒ * x))
 
+/-- An allegory with a union operation, where multiplication preserves finite joins. -/
 class UnionAllegory (L : Type*) extends Allegory L, Lattice L, OrderBot L where
+  /-- Multiplication preserves binary joins. -/
   mul_sup (x y z : L) : x * (y ⊔ z) = x * y ⊔ x * z
+  /-- Multiplication preserves the bottom element. -/
   mul_bot (x : L) : x * ⊥ = ⊥
 
 open UnionAllegory
@@ -94,19 +104,23 @@ variable {L : Type*} [UnionAllegory L]
 @[simp, scoped grind =] lemma conv_sup (x y : L) : (x ⊔ y)ᵒ = xᵒ ⊔ yᵒ := (convIso L).map_sup x y
 
 @[simp, scoped grind =] lemma sup_mul (x y z : L) : (x ⊔ y) * z = x * z ⊔ y * z := by
-  rw [←conv_conv ((x ⊔ y) * z), conv_mul]
-  simp [mul_sup]
+  rw [← conv_conv ((x ⊔ y) * z), conv_mul]
+  simp
 
 @[simp, scoped grind =] lemma bot_mul (x : L) : ⊥ * x = ⊥ := by
-  rw [←le_bot_iff, ←conv_bot, ←conv_le_iff_le_conv]
+  rw [← le_bot_iff, ← conv_bot, ← conv_le_iff_le_conv]
   simp
 
 end UnionAllegory
 
+/-- An allegory which is a distributive lattice. -/
 class DistribAllegory (L : Type*) extends UnionAllegory L, DistribLattice L
 
+/-- Allegories where (left- and right-) multiplication has a right adjoint. -/
 class DivisionAllegory (L : Type*) extends Allegory L where
+  /-- The right adjoint to right multiplication. -/
   over (x y : L) : L
+  /-- The defining property of `over`. -/
   le_over_iff (x y z : L) : x ≤ over y z ↔ x * z ≤ y
 
 open DivisionAllegory
@@ -115,14 +129,15 @@ section DivisionAllegory
 
 variable {L : Type*} [DivisionAllegory L]
 
-scoped infix:60 " // " => over
+@[inherit_doc] scoped infix:60 " // " => over
 
+/-- The right adjoint to left multiplication. -/
 def under (x y : L) : L := (yᵒ // xᵒ)ᵒ
 
-scoped infix:60 " \\\\ " => under
+@[inherit_doc] scoped infix:60 " \\\\ " => under
 
 lemma le_under_iff (x y z : L) : x ≤ y \\ z ↔ y * x ≤ z := by
-  rw [under, ←conv_le_iff_le_conv, le_over_iff, ←conv_mul, conv_le_conv_iff]
+  rw [under, ← conv_le_iff_le_conv, le_over_iff, ← conv_mul, conv_le_conv_iff]
 
 attribute [simp, grind =] le_over_iff le_under_iff
 
@@ -134,53 +149,48 @@ lemma mul_under_le (x y : L) : x * (x \\ y) ≤ y := le_under_iff (x \\ y) x y |
 
 lemma le_mul_under (x y : L) : y ≤ x \\ (x * y) := le_under_iff y x (x * y) |>.mpr le_rfl
 
-lemma over_under_assoc (x y z : L) : x \\ (y // z) = (x \\ y) // z := by
-  apply eq_of_forall_le_iff
-  grind
+lemma over_under_assoc (x y z : L) : x \\ (y // z) = (x \\ y) // z :=
+  eq_of_forall_le_iff <| by simp [←  mul_assoc]
 
-@[simp, scoped grind =] lemma over_one (x : L) : x // 1 = x := by
-  apply eq_of_forall_le_iff
-  grind
+@[simp, scoped grind =] lemma over_one (x : L) : x // 1 = x :=
+  eq_of_forall_le_iff <| by simp
 
-@[simp, scoped grind =] lemma under_one (x : L) : 1 \\ x = x := by
-  apply eq_of_forall_le_iff
-  grind
+@[simp, scoped grind =] lemma under_one (x : L) : 1 \\ x = x :=
+  eq_of_forall_le_iff <| by simp
 
 @[simp] lemma conv_over (x y : L) : (x // y)ᵒ = yᵒ \\ xᵒ := by
   apply eq_of_forall_le_iff
-  simp_rw [le_under_iff, ←conv_le_iff_le_conv]
-  grind
+  simp_rw [le_under_iff, ← conv_le_iff_le_conv]
+  simp
 
 @[simp] lemma conv_under (x y : L) : (x \\ y)ᵒ = yᵒ // xᵒ := by
   apply eq_of_forall_le_iff
-  simp_rw [le_over_iff, ←conv_le_iff_le_conv]
+  simp_rw [le_over_iff, ← conv_le_iff_le_conv]
   simp
 
-@[simp] lemma inf_over (x y z : L) : (x ⊓ y) // z = (x // z) ⊓ (y // z) := by
-  apply eq_of_forall_le_iff
-  simp
+@[simp] lemma inf_over (x y z : L) : (x ⊓ y) // z = (x // z) ⊓ (y // z) :=
+  eq_of_forall_le_iff <| by simp
 
-@[simp] lemma under_inf (x y z : L) : x \\ (y ⊓ z) = (x \\ y) ⊓ (x \\ z) := by
-  apply eq_of_forall_le_iff
-  simp
+@[simp] lemma under_inf (x y z : L) : x \\ (y ⊓ z) = (x \\ y) ⊓ (x \\ z) :=
+  eq_of_forall_le_iff <| by simp
 
 lemma _root_.IsBot.isTop_under {x : L} (hx : IsBot x) (y : L) : IsTop (x \\ y) := by
   intro z
-  simp [le_under_iff, ←le_over_iff, hx (y // z)]
+  simp [le_under_iff, ← le_over_iff, hx (y // z)]
 
 @[simp] lemma bot_under [BoundedOrder L] (x : L) : ⊥ \\ x = ⊤ := (isBot_bot.isTop_under x).eq_top
 
 lemma _root_.IsBot.isTop_over (x : L) {y : L} (hy : IsBot y) : IsTop (x // y) := by
   intro z
-  simp [le_over_iff, ←le_under_iff, hy (z \\ x)]
+  simp [le_over_iff, ← le_under_iff, hy (z \\ x)]
 
 @[simp] lemma over_bot [BoundedOrder L] (x : L) : x // ⊥ = ⊤ := (isBot_bot.isTop_over x).eq_top
 
 @[gcongr] lemma under_mono_right (x : L) {y y' : L} (h : y ≤ y') : x \\ y ≤ x \\ y' := by
-  grw [le_under_iff, ←h, mul_under_le]
+  grw [le_under_iff, ← h, mul_under_le]
 
 @[gcongr] lemma over_mono_left {x x' : L} (y : L) (h : x ≤ x') : x // y ≤ x' // y := by
-  grw [le_over_iff, ←h, over_mul_le]
+  grw [le_over_iff, ← h, over_mul_le]
 
 @[gcongr] lemma under_anti_left {x x' : L} (y : L) (h : x ≤ x') : x' \\ y ≤ x \\ y := by
   grw [le_under_iff, h, mul_under_le]
@@ -188,24 +198,23 @@ lemma _root_.IsBot.isTop_over (x : L) {y : L} (hy : IsBot y) : IsTop (x // y) :=
 @[gcongr] lemma over_anti_right (x : L) {y y' : L} (h : y ≤ y') : x // y' ≤ x // y := by
   grw [le_over_iff, h, over_mul_le]
 
-@[simp] lemma under_under (x y z : L) : x \\ (y \\ z) = y * x \\ z := by
-  apply eq_of_forall_le_iff
-  simp [mul_assoc]
+@[simp] lemma under_under (x y z : L) : x \\ (y \\ z) = y * x \\ z :=
+  eq_of_forall_le_iff <| by simp [mul_assoc]
 
-@[simp] lemma over_over (x y z : L) : (x // y) // z = x // (z * y) := by
-  apply eq_of_forall_le_iff
-  simp [mul_assoc]
+@[simp] lemma over_over (x y z : L) : (x // y) // z = x // (z * y) :=
+  eq_of_forall_le_iff <| by simp [mul_assoc]
 
 lemma under_top_mul_mul_top [OrderTop L] (x y : L) : (x \\ y * ⊤) * ⊤ = x \\ y * ⊤ := by
   refine le_antisymm ?_ (le_mul_top ..)
-  grw [le_under_iff, ←mul_assoc, mul_under_le, mul_assoc, le_top (a := ⊤ * ⊤)]
+  grw [le_under_iff, ← mul_assoc, mul_under_le, mul_assoc, le_top (a := ⊤ * ⊤)]
 
 lemma top_mul_mul_top_over [OrderTop L] (x y : L) : ⊤ * (⊤ * x // y) = ⊤ * x // y := by
   refine le_antisymm ?_ (le_top_mul ..)
-  grw [le_over_iff, mul_assoc, over_mul_le, ←mul_assoc, le_top (a := ⊤ * ⊤)]
+  grw [le_over_iff, mul_assoc, over_mul_le, ← mul_assoc, le_top (a := ⊤ * ⊤)]
 
 end DivisionAllegory
 
+/-- Allegories with both a lattice and division structure. -/
 class UnionDivAllegory (L : Type*) extends DivisionAllegory L, Lattice L, BoundedOrder L
 
 section UnionDivAllegory
@@ -215,17 +224,15 @@ variable {L : Type*} [UnionDivAllegory L]
 instance : UnionAllegory L where
   mul_sup x y z := by
     apply eq_of_forall_ge_iff
-    simp_rw [←le_under_iff, sup_le_iff, le_under_iff]
-    simp
-  mul_bot x := IsBot.eq_bot <| by simp [IsBot, ←le_under_iff]
+    simp_rw [← le_under_iff, sup_le_iff, le_under_iff]
+    exact fun _ => trivial
+  mul_bot x := IsBot.eq_bot <| by simp [IsBot, ← le_under_iff]
 
-@[simp] lemma over_sup (x y z : L) : x // (y ⊔ z) = (x // y) ⊓ (x // z) := by
-  apply eq_of_forall_le_iff
-  simp
+@[simp] lemma over_sup (x y z : L) : x // (y ⊔ z) = (x // y) ⊓ (x // z) :=
+  eq_of_forall_le_iff <| by simp
 
-@[simp] lemma sup_under (x y z : L) : (x ⊔ y) \\ z = (x \\ z) ⊓ (y \\ z) := by
-  apply eq_of_forall_le_iff
-  simp
+@[simp] lemma sup_under (x y z : L) : (x ⊔ y) \\ z = (x \\ z) ⊓ (y \\ z) :=
+  eq_of_forall_le_iff <| by simp
 
 lemma sup_over_ge (x y z : L) : (x // z) ⊔ (y // z) ≤ (x ⊔ y) // z :=
   sup_le (over_mono_left z le_sup_left) (over_mono_left z le_sup_right)
@@ -235,6 +242,7 @@ lemma under_sup_ge (x y z : L) : (x \\ y) ⊔ (x \\ z) ≤ x \\ (y ⊔ z) :=
 
 end UnionDivAllegory
 
+/-- An alternative axiomatisation of Boolean allegories (defined below). -/
 class BooleanAllegory' (L : Type*) extends UnionAllegory L, BooleanAlgebra L
 
 @[simp, scoped grind =] lemma conv_compl {L : Type*} [BooleanAllegory' L] (x : L) : xᶜᵒ = xᵒᶜ := by
@@ -256,16 +264,18 @@ lemma mul_le_compl_iff {L : Type*} [BooleanAllegory' L] (x y z : L) :
 
 lemma mul_le_compl_iff' {L : Type*} [BooleanAllegory' L] (x y z : L) :
     x * y ≤ zᶜ ↔ z * yᵒ ≤ xᶜ := by
-  rw [←conv_le_conv_iff, conv_mul, conv_compl, mul_le_compl_iff, ←conv_mul, ←conv_compl,
+  rw [← conv_le_conv_iff, conv_mul, conv_compl, mul_le_compl_iff, ← conv_mul, ← conv_compl,
     conv_le_conv_iff]
 
+/-- Allegories whose underlying lattice is a Boolean algebra. -/
 class BooleanAllegory (L : Type*) extends UnionDivAllegory L, BooleanAlgebra L
 
+/-- Any Boolean union-allegory has adjoints for multiplication, so defines a full-fledged Boolean
+allegory. -/
 @[implicit_reducible]
 protected def BooleanAllegory.mk' (L : Type*) [BooleanAllegory' L] : BooleanAllegory L where
   over x y := (xᶜ * yᵒ)ᶜ
-  le_over_iff x y z := by rw [le_compl_comm (a := x) (b := yᶜ * zᵒ), ←mul_le_compl_iff',
-    compl_compl]
+  le_over_iff x y z := by rw [le_compl_comm, ←  mul_le_compl_iff', compl_compl]
 
 section BooleanAllegory
 
@@ -282,12 +292,12 @@ theorem mul_le_compl_tfae (x y z : L) :
   tfae_finish
 
 lemma conv_mul_compl_mul_le_compl (x y : L) : xᵒ * (x * y)ᶜ ≤ yᶜ := by
-  rw [←mul_le_compl_iff, compl_compl]
+  rw [← mul_le_compl_iff, compl_compl]
 
 lemma over_eq (x y : L) : x // y = (xᶜ * yᵒ)ᶜ := by
   apply eq_of_forall_le_iff
   intro z
-  rw [le_compl_comm, ←mul_le_compl_iff', compl_compl, le_over_iff]
+  rw [le_compl_comm, ← mul_le_compl_iff', compl_compl, le_over_iff]
 
 lemma under_eq (x y : L) : x \\ y = (xᵒ * yᶜ)ᶜ := by
   rw [under, over_eq]
@@ -295,6 +305,7 @@ lemma under_eq (x y : L) : x \\ y = (xᵒ * yᶜ)ᶜ := by
 
 end BooleanAllegory
 
+/-- Allegories whose underlying order is a complete lattice. -/
 class CompleteAllegory (L : Type*) extends DivisionAllegory L, CompleteLattice L
 
 section CompleteAllegory
@@ -304,12 +315,12 @@ variable {L : Type*} [CompleteAllegory L]
 lemma mul_sSup (x : L) (ys : Set L) : x * sSup ys = ⨆ y ∈ ys, x * y := by
   apply eq_of_forall_ge_iff
   intro z
-  simp_rw [iSup_le_iff, ←le_under_iff, sSup_le_iff]
+  simp_rw [iSup_le_iff, ← le_under_iff, sSup_le_iff]
 
 lemma sSup_mul (xs : Set L) (y : L) : sSup xs * y = ⨆ x ∈ xs, x * y := by
   apply eq_of_forall_ge_iff
   intro z
-  simp_rw [iSup_le_iff, ←le_over_iff, sSup_le_iff]
+  simp_rw [iSup_le_iff, ← le_over_iff, sSup_le_iff]
 
 lemma conv_sSup (xs : Set L) : (sSup xs)ᵒ = ⨆ x ∈ xs, xᵒ := convIso L |>.map_sSup xs
 
@@ -317,6 +328,7 @@ instance : UnionDivAllegory L where
 
 end CompleteAllegory
 
+/-- Alternative axiomatisation of complete allegories. -/
 class CompleteAllegory' (L : Type*) extends Allegory L, CompleteLattice L where
   sSup_mul' (xs : Set L) (y : L) : sSup xs * y = ⨆ x ∈ xs, x * y
 
@@ -324,6 +336,7 @@ section CompleteAllegory'
 
 variable {L : Type*} [CompleteAllegory' L]
 
+/-- Define order adjoints via the complete lattice structure. -/
 instance : CompleteAllegory L where
   over x y := sSup {z | z * y ≤ x}
   le_over_iff x y z := by
@@ -332,6 +345,7 @@ instance : CompleteAllegory L where
 
 end CompleteAllegory'
 
+/-- Fully-fledged relation algebras are complete Boolean allegories. -/
 class RelationAlgebra (L : Type*) extends BooleanAllegory L, CompleteBooleanAlgebra L
 
 instance (L : Type*) [RelationAlgebra L] : CompleteAllegory L where

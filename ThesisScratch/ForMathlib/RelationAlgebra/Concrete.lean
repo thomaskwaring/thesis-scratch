@@ -1,22 +1,20 @@
 import ThesisScratch.ForMathlib.RelationAlgebra.WellFounded
 import ThesisScratch.ForMathlib.Basic.Relation
+import Mathlib.Data.Rel
 
 variable {α : Type*}
 
 open Relation Function Set
 
-@[implicit_reducible]
-def compMonoid (α : Type*) : Monoid (α → α → Prop) where
+namespace Allegory
+
+/-- Binary endorelations as a relation algebra. -/
+scoped instance (α : Type*) : RelationAlgebra (α → α → Prop) where
   mul := Comp
   mul_assoc _ _ _ := Relation.comp_assoc ..
   one := (· = ·)
   one_mul _ := eq_comp
   mul_one _ := comp_eq
-
-namespace Allegory
-
-scoped instance (α : Type*) : RelationAlgebra (α → α → Prop) where
-  __ := compMonoid α
   elim := by
     intro s r r' h x y ⟨z, hxz, hzy⟩
     use z, hxz, h _ _ hzy
@@ -79,6 +77,7 @@ lemma rel_transGen (r : α → α → Prop) : r⁺ = TransGen r := by
     | single h => exact le_transGen r _ _ h
     | tail h h' ih => exact transGen_mul_le_transGen r _ _ ⟨_, ih, h'⟩
 
+/-- Interpret a set as a coreflexive relation. -/
 def OfSet (s : Set α) : α → α → Prop := fun x y => x = y ∧ x ∈ s
 
 instance allSet_setOf (s : Set α) : AllSet (OfSet s) := ⟨fun _ _ => And.left⟩
@@ -145,5 +144,27 @@ theorem allInd_iff_wellFounded (r : α → α → Prop) : AllInd r ↔ WellFound
       apply hs
       intro z hz
       exact hx z hz trivial
+
+open SetRel in
+instance : RelationAlgebra (SetRel α α) where
+  mul := comp
+  mul_assoc := comp_assoc
+  one := SetRel.id
+  one_mul := id_comp
+  mul_one := comp_id
+  elim _ _ _ := comp_subset_comp_right
+  conv := inv
+  conv_le_iff_le_conv a b := by grind [inv]
+  conv_mul := inv_comp
+  left_modular x y z := by
+    intro (a, c) ⟨⟨b, hab, hbc⟩, hac⟩
+    use! b, hab, hbc, a, hab, hac
+  over x y := {(a, b) | ∀ c, b ~[y] c → a ~[x] c}
+  le_over_iff x y z := by
+    constructor
+    · intro h (a, b) ⟨c, hac, hcb⟩
+      exact h hac b hcb
+    · intro h (a, b) hab c hbc
+      exact h ⟨b, hab, hbc⟩
 
 end Allegory
