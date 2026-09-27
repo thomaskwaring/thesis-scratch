@@ -1,6 +1,9 @@
 import ThesisScratch.ForMathlib.RelationAlgebra.WellFounded
 import ThesisScratch.ForMathlib.Basic.Relation
 import Mathlib.Data.Rel
+import Mathlib.Algebra.Group.Pointwise.Set.Basic
+import Mathlib.Data.Set.Lattice.Image
+import Mathlib.Order.Sublattice
 
 variable {α : Type*}
 
@@ -88,7 +91,7 @@ lemma ldom_eq_ofSet_dom (r : α → α → Prop) : ldom r = OfSet (dom r) := by
   · intro ⟨⟨z, h, _⟩, heq⟩
     exact ⟨heq, ⟨z, h⟩⟩
   · intro ⟨heq, z, h⟩
-    exact ⟨⟨z, h, trivial⟩, heq⟩
+    exact ⟨⟨z, h, heq ▸ h⟩, heq⟩
 
 lemma rdom_eq_ofSet_cod (r : α → α → Prop) : rdom r = OfSet (cod r) := by
   ext x y
@@ -96,7 +99,7 @@ lemma rdom_eq_ofSet_cod (r : α → α → Prop) : rdom r = OfSet (cod r) := by
   · intro ⟨⟨z, _, h⟩, heq⟩
     exact ⟨heq, ⟨z, heq ▸ h⟩⟩
   · intro ⟨heq, ⟨z, h⟩⟩
-    exact ⟨⟨z, trivial, heq ▸ h⟩, heq⟩
+    exact ⟨⟨z, h, heq ▸ h⟩, heq⟩
 
 @[simp] lemma dom_ofSet (a : Set α) : dom (OfSet a) = a := by
   ext x
@@ -166,5 +169,92 @@ instance : RelationAlgebra (SetRel α α) where
       exact h hac b hcb
     · intro h (a, b) hab c hbc
       exact h ⟨b, hab, hbc⟩
+
+open Pointwise in
+instance {G : Type*} [Group G] : CompleteAllegory' (Set G) where
+  __ := Set.monoid
+  __ := Set.instMulLeftMono
+  conv s := s⁻¹
+  conv_le_iff_le_conv _ _ := Set.inv_subset
+  conv_mul := DivisionMonoid.mul_inv_rev
+  left_modular s t u := by
+    rintro _ ⟨⟨x, hx, y, hy, rfl⟩, hu⟩
+    use! x, hx, y, hy, x⁻¹, inv_mem_inv.mpr hx, x * y, hu
+    simp
+  sSup_mul' := Set.image2_sUnion_left (· * ·)
+
+instance {G : Type*} [Group G] : RelationAlgebra (Set G) where
+
+-- From Chris Henson's formalisation
+
+structure ProperRelationAlgebra (X : Type*) extends Sublattice (SetRel X X) where
+  /-- The largest relation, used as the Boolean top. -/
+  top : SetRel X X
+  /-- The top belongs to the algebra and contains every relation in it. -/
+  isGreatest_top : IsGreatest carrier top
+  /-- Closure under complement relative to the top. -/
+  compl_mem' {R} : R ∈ carrier → top \ R ∈ carrier
+  /-- The identity relation belongs to the algebra. -/
+  id_mem' : SetRel.id ∈ carrier
+  /-- Closure under relational composition. -/
+  comp_mem' {R S} : R ∈ carrier → S ∈ carrier → R.comp S ∈ carrier
+  /-- Closure under converse. -/
+  inv_mem' {R} : R ∈ carrier → R.inv ∈ carrier
+
+namespace ProperRelationAlgebra
+
+variable {X : Type*} {P : ProperRelationAlgebra X}
+
+@[ext]
+protected theorem ext {P Q : ProperRelationAlgebra X} (h : P.carrier = Q.carrier) : P = Q := by
+  have : P.top = Q.top := P.isGreatest_top.unique (h ▸ Q.isGreatest_top)
+  rcases P with ⟨⟨_⟩, _⟩; rcases Q with ⟨⟨_⟩, _⟩
+  congr
+
+/-- The type of relations belonging to a proper relation algebra. -/
+abbrev Carrier (P : ProperRelationAlgebra X) : Type _ := P.carrier
+
+instance (P : ProperRelationAlgebra X) : BooleanAlgebra P.Carrier where
+  toDistribLattice := inferInstanceAs (DistribLattice P.toSublattice)
+  top := ⟨P.top, P.isGreatest_top.1⟩
+  bot := ⟨∅, Set.sdiff_self ▸ P.compl_mem' P.isGreatest_top.1⟩
+  compl R := ⟨P.top \ R.val, P.compl_mem' R.prop⟩
+  le_top R := P.isGreatest_top.2 R.prop
+  bot_le _ := Set.empty_subset _
+  inf_compl_le_bot R := fun _ ⟨hR, _, hn⟩ ↦ hn hR
+  top_le_sup_compl R := show P.top ⊆ R.val ∪ (P.top \ R.val) from le_sup_sdiff
+
+instance (P : ProperRelationAlgebra X) : Monoid P.Carrier where
+  one := ⟨SetRel.id, P.id_mem'⟩
+  mul R S := ⟨R.val.comp S.val, P.comp_mem' R.prop S.prop⟩
+  one_mul R := Subtype.ext (SetRel.id_comp R.val)
+  mul_one R := Subtype.ext (SetRel.comp_id R.val)
+  mul_assoc R S T := Subtype.ext (SetRel.comp_assoc R.val S.val T.val)
+
+lemma coe_le_coe {r s : P.Carrier} : (↑r : SetRel X X) ≤ s ↔ r ≤ s := Iff.rfl
+
+lemma coe_mul {r s : P.Carrier} : r * s = (r : SetRel X X) * s := rfl
+
+instance booleanAllegory' (P : ProperRelationAlgebra X) : BooleanAllegory' P.Carrier where
+  elim := by
+    intro ⟨r, _⟩ ⟨s, _⟩ ⟨s', _⟩ (h : s ⊆ s')
+    rw [← coe_le_coe]
+    exact mul_right_mono h
+  conv r := ⟨r.val.inv, P.inv_mem' r.prop⟩
+  conv_le_iff_le_conv := by grind [=_ coe_le_coe, SetRel.inv]
+  conv_mul r s := Subtype.ext <| SetRel.inv_comp ..
+  left_modular := by
+    intro ⟨r, _⟩ ⟨s, _⟩ ⟨t, _⟩ ⟨x, y⟩ ⟨⟨z, hr, hs⟩, ht⟩
+    use z, hr, hs, x, hr
+  mul_sup := by
+    intro ⟨r, _⟩ ⟨s, _⟩ ⟨t, _⟩
+    apply Subtype.ext
+    convert SetRel.comp_sUnion r {s, t}
+    all_goals simp; rfl
+  mul_bot r := Subtype.ext <| SetRel.comp_empty r.val
+
+instance (P : ProperRelationAlgebra X) : BooleanAllegory P.Carrier := BooleanAllegory.mk' P.Carrier
+
+end ProperRelationAlgebra
 
 end Allegory

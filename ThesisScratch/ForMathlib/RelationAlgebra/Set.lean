@@ -73,15 +73,15 @@ lemma ext_le_allSet (x y : L) [AllSet x] [AllSet y] : x = y ↔ ∀ z [AllSet z]
 
 section Domain
 
-variable [OrderTop L]
+-- variable [OrderTop L]
 
-/-- The left domain of `x` In terms of relations, this is an element `a` of the underlying set so
-that `∃ b, a ~[x] b`. -/
-def ldom (x : L) : L := x * ⊤ ⊓ 1
+/-- The left domain of `x` In terms of relations, this is the set of elements `a` of the underlying
+set so that `∃ b, a ~[x] b`. -/
+def ldom (x : L) : L := x * xᵒ ⊓ 1
 
-/-- The right domain of `x`. In terms of relations, this is an element `a` of the underlying set so
-that `∃ b, b ~[x] a`. -/
-def rdom (x : L) : L := ⊤ * x ⊓ 1
+/-- The right domain of `x`. In terms of relations, this is the set of elements `a` of the
+underlying set so that `∃ b, b ~[x] a`. -/
+def rdom (x : L) : L := xᵒ * x ⊓ 1
 
 instance (x : L) : AllSet (ldom x) where
   le_one := inf_le_right
@@ -90,45 +90,57 @@ instance (x : L) : AllSet (rdom x) where
   le_one := inf_le_right
 
 @[simp, scoped grind =] lemma ldom_conv (x : L) : ldom xᵒ = rdom x := by
-  convert conv_eq <| rdom x using 1
-  rw [ldom, rdom, conv_inf, conv_mul, conv_eq ⊤, conv_eq 1]
+  simp [ldom, rdom]
 
 @[simp, scoped grind =] lemma rdom_conv (x : L) : rdom xᵒ = ldom x := by
-  convert conv_eq <| ldom x using 1
-  rw [ldom, rdom, conv_inf, conv_mul, conv_eq ⊤, conv_eq 1]
+  simp [ldom, rdom]
 
-@[gcongr, scoped grind .] lemma ldom_mono {x y : L} (h : x ≤ y) : ldom x ≤ ldom y :=
-  inf_le_inf_right 1 (mul_left_mono h)
+@[gcongr, scoped grind .] lemma ldom_mono {x y : L} (h : x ≤ y) : ldom x ≤ ldom y := by
+  grw [ldom, h, ldom]
 
-@[gcongr, scoped grind .] lemma rdom_mono {x y : L} (h : x ≤ y) : rdom x ≤ rdom y :=
-  inf_le_inf_right 1 (mul_right_mono h)
-
-@[simp, scoped grind =] lemma ldom_sup {L : Type*} [DistribAllegory L] [OrderTop L] (x y : L) :
-    ldom (x ⊔ y) = ldom x ⊔ ldom y := by
-  simp [ldom, inf_sup_right]
-
-@[simp, scoped grind =] lemma rdom_sup {L : Type*} [DistribAllegory L] [OrderTop L] (x y : L) :
-    rdom (x ⊔ y) = rdom x ⊔ rdom y := by
-  simp [rdom, inf_sup_right]
+@[gcongr, scoped grind .] lemma rdom_mono {x y : L} (h : x ≤ y) : rdom x ≤ rdom y := by
+  grw [rdom, h, rdom]
 
 @[simp] lemma ldom_of_allRefl (x : L) [AllRefl x] : ldom x = 1 := by
   refine inf_le_right.antisymm <| le_inf ?_ le_rfl
-  simpa using mul_le_mul' (one_le' x) (one_le' ⊤)
+  grw [← one_le' x]
+  simp
 
 @[simp] lemma rdom_of_allRefl (x : L) [AllRefl x] : rdom x = 1 := by
   refine inf_le_right.antisymm <| le_inf ?_ le_rfl
-  simpa using mul_le_mul' (one_le' ⊤) (one_le' x)
+  grw [← one_le' x]
+  simp
 
 lemma ldom_eq_rdom_of_allSymm (x : L) [AllSymm x] : ldom x = rdom x := by
-  rw [←rdom_conv, conv_eq]
+  rw [← rdom_conv, conv_eq]
+
+lemma ldom_le_iff_le_mul (x y : L) [AllSet y] : ldom x ≤ y ↔ x ≤ y * x := by
+  constructor <;> intro h
+  · grw [← h, ldom, ← right_modular']
+    simp
+  · nth_grw 1 [ldom, h, mul_assoc, left_modular, inf_le_right]
+    simp
+
+lemma rdom_le_iff_le_mul (x y : L) [AllSet y] : rdom x ≤ y ↔ x ≤ x * y := by
+  rw [← ldom_conv, ← conv_eq (ldom xᵒ), conv_le_iff_le_conv, ldom_le_iff_le_mul,
+    conv_le_iff_le_conv]
+  simp
+
+lemma ldom_mul_self (x : L) : ldom x * x = x := by
+  refine (mul_left_le (ldom x) x).antisymm ?_
+  convert! right_modular' x 1 x using 2
+  simp
+
+lemma self_mul_rdom (x : L) : x * rdom x = x := by
+  refine (mul_right_le x (rdom x)).antisymm ?_
+  grw [rdom, ← left_modular']
+  simp
 
 lemma ldom_mul_right_le (x y : L) : ldom (x * y) ≤ ldom x := by
-  rw [ldom, ldom, mul_assoc]
-  exact inf_le_inf_right 1 (mul_right_mono le_top)
+  rw [ldom_le_iff_le_mul, ← mul_assoc, ldom_mul_self]
 
 lemma rdom_mul_left_le (x y : L) : rdom (x * y) ≤ rdom y := by
-  rw [rdom, rdom, ←mul_assoc]
-  exact inf_le_inf_right 1 (mul_left_mono le_top)
+  rw [rdom_le_iff_le_mul, mul_assoc, self_mul_rdom]
 
 lemma ldom_mul_right_allRefl (x y : L) [AllRefl y] : ldom (x * y) = ldom x :=
   (ldom_mul_right_le x y).antisymm <| ldom_mono (mul_right_ge x y)
@@ -136,56 +148,77 @@ lemma ldom_mul_right_allRefl (x y : L) [AllRefl y] : ldom (x * y) = ldom x :=
 lemma rdom_mul_left_allRefl (x y : L) [AllRefl x] : rdom (x * y) = rdom y :=
   (rdom_mul_left_le x y).antisymm <| rdom_mono (mul_left_ge y x)
 
-lemma ldom_le_self_mul_conv (x : L) : ldom x ≤ x * xᵒ := by
-  convert! left_modular x ⊤ 1 using 1
-  simp
+lemma ldom_le_self_mul_conv (x : L) : ldom x ≤ x * xᵒ := inf_le_left
 
-lemma rdom_le_conv_mul_self (x : L) : rdom x ≤ xᵒ * x := by
-  convert! right_modular ⊤ x 1 using 1
-  simp
+lemma rdom_le_conv_mul_self (x : L) : rdom x ≤ xᵒ * x := inf_le_left
 
 @[simp] lemma ldom_allSet (x : L) [AllSet x] : ldom x = x := by
-  refine le_antisymm (ldom_le_self_mul_conv x |>.trans ?_) (le_inf (mul_right_ge x ⊤) (le_one x))
-  simp
+  simpa [ldom] using le_one x
 
 @[simp] lemma rdom_allSet (x : L) [AllSet x] : rdom x = x := by
-  refine le_antisymm (rdom_le_conv_mul_self x |>.trans ?_) (le_inf (mul_left_ge x ⊤) (le_one x))
-  simp
+  simpa [rdom] using le_one x
 
-@[simp] lemma ldom_mul_self (x : L) : ldom x * x = x := by
-  refine (mul_left_le (ldom x) x).antisymm ?_
-  calc
-    x = x ⊓ x * 1 := by simp
-    _ ≤ x ⊓ x * ⊤ := by gcongr; exact le_top
-    _ ≤ (1 ⊓ x * ⊤ * xᵒ) * x := by convert right_modular 1 x (x * ⊤) using 2; simp
-    _ ≤ (1 ⊓ x * ⊤ * ⊤) * x := by gcongr; exact le_top
-    _ = ldom x * x := by simp [ldom, inf_comm]
+lemma ldom_mul_top [OrderTop L] (x : L) : ldom x * ⊤ = x * ⊤ := by
+  apply le_antisymm
+  · grw [ldom, inf_mul_le, one_mul, inf_top_eq, ← mul_right_idem x ⊤, le_top (a := xᵒ)]
+  · nth_grw 1 [← ldom_mul_self x, mul_assoc, le_top (a := x * ⊤ )]
 
-@[simp] lemma self_mul_rdom (x : L) : x * rdom x = x := by
-  rw [←conv_conv (x * rdom x), conv_mul, conv_eq (rdom x), ←ldom_conv, ldom_mul_self, conv_conv]
-
-lemma ldom_mul_top (x : L) : ldom x * ⊤ = x * ⊤ := by
-  refine le_antisymm ?_ ?_
-  · calc
-      ldom x * ⊤ ≤ x * ⊤ * ⊤ ⊓ 1 * ⊤ := inf_mul_le ..
-      _ = x * ⊤ ⊓ 1 * ⊤ := by simp
-      _ ≤ x * ⊤ := inf_le_left ..
-  · rw (occs := [1]) [←ldom_mul_self x, mul_assoc]
-    exact mul_right_mono le_top
-
-lemma top_mul_rdom (x : L) : ⊤ * rdom x = ⊤ * x := by
+lemma top_mul_rdom [OrderTop L] (x : L) : ⊤ * rdom x = ⊤ * x := by
   rw [←conv_conv (⊤ * rdom x), conv_mul, conv_eq (rdom x), conv_top, ←ldom_conv, ldom_mul_top,
     conv_mul, conv_top, conv_conv]
 
+lemma ldom_inf (x y : L) : ldom (x ⊓ y) = x * yᵒ ⊓ 1 := by
+  apply le_antisymm
+  · grw [ldom, conv_inf, @inf_le_left _ _ x y, @inf_le_right _ _ xᵒ yᵒ]
+  · calc
+      x * yᵒ ⊓ 1 = x * yᵒ ⊓ 1 ⊓ 1 ⊓ 1 := by simp
+      _ ≤ (x ⊓ y) * yᵒ ⊓ 1 ⊓ 1 := by simpa using right_modular x yᵒ 1
+      _ ≤ ldom (x ⊓ y) := by simpa [ldom] using left_modular (x ⊓ y) yᵒ 1
+
+lemma rdom_inf (x y : L) : rdom (x ⊓ y) = xᵒ * y ⊓ 1 := by
+  rw [← ldom_conv, conv_inf, ldom_inf, conv_conv]
+
+@[simp, scoped grind =] lemma ldom_sup {L : Type*} [DistribAllegory L] (x y : L) :
+    ldom (x ⊔ y) = ldom x ⊔ ldom y := by
+  rw [ldom, conv_sup, mul_sup, sup_mul, sup_mul, inf_sup_right, inf_sup_right, ← ldom,
+    inf_sup_right, ← ldom, ← ldom_inf, ← ldom_inf]
+  congr
+  · exact sup_eq_left.mpr <| ldom_mono inf_le_right
+  · exact sup_eq_right.mpr <| ldom_mono inf_le_right
+
+@[simp, scoped grind =] lemma rdom_sup {L : Type*} [DistribAllegory L] (x y : L) :
+    rdom (x ⊔ y) = rdom x ⊔ rdom y := by
+  rw [← ldom_conv, conv_sup, ldom_sup, ldom_conv, ldom_conv]
+
 lemma ldom_mul_ldom (x y : L) : ldom (x * ldom y) = ldom (x * y) := by
-  rw [←ldom_mul_right_allRefl (x * ldom y) ⊤, mul_assoc, ldom_mul_top, ←mul_assoc,
-    ldom_mul_right_allRefl _ ⊤]
+  apply le_antisymm <;> rw [ldom_le_iff_le_mul]
+  · nth_rw 1 [← mul_self_eq_of_allSet (ldom y), ← mul_assoc, ← mul_assoc]
+    apply mul_left_mono
+    grw [ldom, ldom, conv_mul, ← mul_assoc, ← right_modular', mul_inf_le, ← mul_assoc, mul_one,
+      one_mul]
+  · nth_rw 1 [← ldom_mul_self y, ← mul_assoc, ←ldom_mul_self (x * ldom y), mul_assoc, mul_assoc,
+      ldom_mul_self y]
 
 lemma rdom_rdom_mul (x y : L) : rdom (rdom x * y) = rdom (x * y) := by
-  rw [←rdom_mul_left_allRefl ⊤ (rdom x * y), ←mul_assoc, top_mul_rdom, mul_assoc,
-    rdom_mul_left_allRefl ⊤ _]
+  rw [← ldom_conv, ← ldom_conv, ← ldom_conv, conv_mul, conv_eq (ldom xᵒ), ldom_mul_ldom,
+    conv_mul]
 
-theorem ldom_le_tfae_of_allSet (x y : L) [AllSet y] :
+lemma ldom_eq_of_conv_le {x y : L} (h : xᵒ ≤ y) : ldom x = x * y ⊓ 1 := by
+  apply le_antisymm
+  · grw [ldom, h]
+  · refine le_inf ?_ inf_le_right
+    grw [left_modular x y 1, mul_one, inf_eq_right.mpr h]
+
+lemma ldom_eq_of_orderTop [OrderTop L] (x : L) : ldom x = x * ⊤ ⊓ 1 := ldom_eq_of_conv_le le_top
+
+lemma rdom_eq_of_conv_le {x y : L} (h : xᵒ ≤ y) : rdom x = y * x ⊓ 1 := by
+  rw [← conv_eq (rdom x), ← conv_conv x, rdom_conv,
+    ldom_eq_of_conv_le (conv_le_conv_iff _ _ |>.mpr h)]
+  simp [-conv_eq]
+
+lemma rdom_eq_of_orderTop [OrderTop L] (x : L) : rdom x = ⊤ * x ⊓ 1 := rdom_eq_of_conv_le le_top
+
+theorem ldom_le_tfae_of_allSet [OrderTop L] (x y : L) [AllSet y] :
     [ldom x ≤ y, y * x = x, x ≤ y * x, x ≤ y * ⊤].TFAE := by
   tfae_have 1 → 2 := by
     intro h
@@ -198,16 +231,17 @@ theorem ldom_le_tfae_of_allSet (x y : L) [AllSet y] :
     exact ldom_mono h
   tfae_finish
 
-lemma ldom_le_iff_mul_eq (x y : L) [AllSet y] : ldom x ≤ y ↔ y * x = x :=
-  ldom_le_tfae_of_allSet x y |>.out 1 2
+lemma ldom_le_iff_mul_eq (x y : L) [AllSet y] : ldom x ≤ y ↔ y * x = x := by
+  rw [le_antisymm_iff, ldom_le_iff_le_mul]
+  simp [mul_left_le]
 
-lemma ldom_le_iff_le_mul_top (x y : L) [AllSet y] : ldom x ≤ y ↔ x ≤ y * ⊤ :=
+lemma ldom_le_iff_le_mul_top [OrderTop L] (x y : L) [AllSet y] : ldom x ≤ y ↔ x ≤ y * ⊤ :=
   ldom_le_tfae_of_allSet x y |>.out 1 4
 
-lemma ldom_le_ldom_iff (x y : L) : ldom x ≤ ldom y ↔ x ≤ y * ⊤ := by
+lemma ldom_le_ldom_iff [OrderTop L] (x y : L) : ldom x ≤ ldom y ↔ x ≤ y * ⊤ := by
   rw [ldom_le_iff_le_mul_top x (ldom y), ldom_mul_top]
 
-theorem rdom_le_tfae_of_allSet (x y : L) [AllSet y] :
+theorem rdom_le_tfae_of_allSet [OrderTop L] (x y : L) [AllSet y] :
     [rdom x ≤ y, x * y = x, x ≤ x * y, x ≤ ⊤ * y].TFAE := by
   tfae_have 1 → 2 := by
     intro h
@@ -220,30 +254,30 @@ theorem rdom_le_tfae_of_allSet (x y : L) [AllSet y] :
     exact rdom_mono h
   tfae_finish
 
-lemma rdom_le_iff_mul_eq (x y : L) [AllSet y] : rdom x ≤ y ↔ x * y = x :=
-  rdom_le_tfae_of_allSet x y |>.out 1 2
+lemma rdom_le_iff_mul_eq (x y : L) [AllSet y] : rdom x ≤ y ↔ x * y = x := by
+  rw [le_antisymm_iff, rdom_le_iff_le_mul]
+  simp [mul_right_le]
 
-lemma rdom_le_iff_le_top_mul (x y : L) [AllSet y] : rdom x ≤ y ↔ x ≤ ⊤ * y :=
+lemma rdom_le_iff_le_top_mul [OrderTop L] (x y : L) [AllSet y] : rdom x ≤ y ↔ x ≤ ⊤ * y :=
   rdom_le_tfae_of_allSet x y |>.out 1 4
 
-lemma rdom_le_rdom_iff (x y : L) : rdom x ≤ rdom y ↔ x ≤ ⊤ * y := by
+lemma rdom_le_rdom_iff [OrderTop L] (x y : L) : rdom x ≤ rdom y ↔ x ≤ ⊤ * y := by
   rw [rdom_le_iff_le_top_mul x (rdom y), top_mul_rdom]
 
 @[simp, scoped grind =>] lemma ldom_allSet_mul (x y : L) [AllSet x] :
-    ldom (x * y) = x * ldom y := by rw [←ldom_mul_ldom, ldom_allSet]
+    ldom (x * y) = x * ldom y := by
+  rw [← ldom_mul_ldom, ldom_allSet]
 
 @[simp, scoped grind =>] lemma rdom_mul_allSet (x y : L) [AllSet y] :
-    rdom (x * y) = rdom x * y := by rw [←rdom_rdom_mul, rdom_allSet]
+    rdom (x * y) = rdom x * y := by rw [← rdom_rdom_mul, rdom_allSet]
 
 lemma eq_ldom_mul_of_eq_mul_allSet {x y z : L} [AllSet y] (h : x = y * z) :
     x = ldom x * z := by
   apply le_antisymm
-  · nth_rw 1 [←ldom_mul_self x]
-    exact mul_right_mono <| h ▸ mul_left_le y z
-  · nth_rw 2 [h]
+  · nth_grw 1 [← ldom_mul_self x, ← mul_left_le y z, h, h, h]
+  · rw [h]
     gcongr
-    rw [ldom_le_iff_le_mul_top, h]
-    exact mul_right_mono le_top
+    nth_rw 1 [ldom_le_iff_le_mul, ← mul_assoc, mul_self_eq_of_allSet y]
 
 lemma eq_mul_rdom_of_eq_mul_allSet {x y z : L} [AllSet z] (h : x = y * z) :
     x = y * rdom x := by
@@ -256,14 +290,14 @@ lemma ldom_mul_allSet_le_allSet_iff (x y z : L) [AllSet y] [AllSet z] :
   constructor <;> intro h
   · rw [ldom_le_iff_mul_eq] at h
     grw [←h, mul_right_le x y]
-  · grw [ldom_le_iff_le_mul_top, h, le_top (a := x)]
+  · grw [ldom_le_iff_le_mul, ← mul_assoc, ← h, mul_assoc, mul_self_eq_of_allSet]
 
 lemma rdom_allSet_mul_le_allSet_iff (x y z : L) [AllSet x] [AllSet z] :
     rdom (x * y) ≤ z ↔ x * y ≤ y * z := by
   constructor <;> intro h
   · rw [rdom_le_iff_mul_eq] at h
     grw [←h, mul_assoc, mul_left_le x (y * z)]
-  · grw [rdom_le_iff_le_top_mul, h, le_top (a := y)]
+  · grw [rdom_le_iff_le_mul, mul_assoc, ← h, ← mul_assoc, mul_self_eq_of_allSet]
 
 end Domain
 
@@ -285,7 +319,7 @@ lemma le_precond_iff (x y z : L) [AllSet x] [AllSet z] : x ≤ y .\\. z ↔ ldom
   simp_rw [le_inf_iff, le_one x, and_true, le_under_iff, ldom_le_iff_le_mul_top]
 
 lemma ldom_mul_precond_le (x y : L) [AllSet y] : ldom (x * (x .\\. y)) ≤ y := by
-  rw [←le_precond_iff]
+  rw [← le_precond_iff]
 
 lemma mul_precond_le_mul (x y : L) [AllSet y] : x * (x .\\. y) ≤ y * x :=
   ldom_mul_allSet_le_allSet_iff x (x .\\. y) y |>.mp (ldom_mul_precond_le x y)
@@ -297,7 +331,7 @@ lemma precond_eq_ldom (x y : L) [AllSet y] : x .\\. y = ldom (x \\ y * ⊤) := b
   rw [ext_le_allSet]
   intro z _
   nth_rw 2 [←ldom_allSet z]
-  rw [le_precond_iff, ldom_le_iff_le_mul_top, ldom_le_ldom_iff, ←le_under_iff,
+  rw [le_precond_iff, ldom_le_iff_le_mul_top, ldom_le_ldom_iff, ← le_under_iff,
     under_top_mul_mul_top]
 
 /-- The weakest postcondition for `x` of under the relation `y`, viewed as a transition
@@ -349,11 +383,11 @@ lemma allSymm_postcond_conv (x y : L) [AllSymm x] : x .//. yᵒ = y .\\. x := by
   grind
 
 @[simp] lemma one_precond (x : L) [AllSet x] : 1 .\\. x = x := by
-  rw [precond, under_one]
+  rw [precond, under_one, ← ldom_eq_of_orderTop]
   exact ldom_allSet x
 
 @[simp] lemma postcond_one (x : L) [AllSet x] : x .//. 1 = x := by
-  rw [postcond, over_one]
+  rw [postcond, over_one, ← rdom_eq_of_orderTop]
   exact rdom_allSet x
 
 lemma precond_le_precond_iff (w x y z : L) [AllSet x] [AllSet z] :

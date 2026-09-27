@@ -50,7 +50,7 @@ theorem allInd_tfae {L : Type*} [UnionDivAllegory L] (x : L) :
     intro h y hy hy'
     rw [← one_mul ⊤, ← hy, ← ldom_mul_top y]
     refine mul_left_mono (h (ldom y) ?_)
-    grw [precond, ldom_mul_top, hy, hy', ldom, hy]
+    grw [precond, ldom_mul_top, hy, hy', ldom_eq_of_orderTop, hy]
   tfae_have 3 → 2 := by
     intro h y _ hy
     rw [← ldom_allSet 1, ldom_le_iff_le_mul_top]

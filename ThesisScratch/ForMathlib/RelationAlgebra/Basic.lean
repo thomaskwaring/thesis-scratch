@@ -59,19 +59,28 @@ lemma le_mul_top [OrderTop L] (x : L) : x ≤ x * ⊤ := by nth_grw 1 [← mul_o
 
 lemma le_top_mul [OrderTop L] (x : L) : x ≤ ⊤ * x := by nth_grw 1 [← one_mul x, le_top (a := 1)]
 
-@[simp, scoped grind =] lemma conv_inf (x y : L) : (x ⊓ y)ᵒ = xᵒ ⊓ yᵒ := convIso L |>.map_inf x y
+@[simp, scoped grind =] lemma conv_inf (x y : L) : (x ⊓ y)ᵒ = xᵒ ⊓ yᵒ := (convIso L).map_inf x y
 
 @[simp, scoped grind =] lemma conv_one : (1 : L)ᵒ = 1 := by
-  have : (1 : L)ᵒ * 1 = 1 := by rw [← conv_conv (1ᵒ * 1), conv_mul]; simp
-  simpa using this
+  rw [← mul_one (a := 1ᵒ), ← conv_conv (1ᵒ * 1), conv_mul, conv_conv, mul_one, conv_conv]
 
 @[simp, scoped grind =] lemma conv_bot [OrderBot L] : (⊥ : L)ᵒ = ⊥ := (convIso L).map_bot
 
 @[simp, scoped grind =] lemma conv_top [OrderTop L] : (⊤ : L)ᵒ = ⊤ := (convIso L).map_top
 
+lemma left_modular' (x y z : L) : x ⊓ y * z ≤ y * (yᵒ * x ⊓ z) := by
+  convert left_modular y z x using 1 <;> rw [inf_comm]
+
 lemma right_modular (x y z : L) : x * y ⊓ z ≤ (x ⊓ z * yᵒ) * y := by
   convert (conv_le_conv_iff _ _).mpr <| left_modular yᵒ xᵒ zᵒ using 1
     <;> simp
+
+lemma right_modular' (x y z : L) : x ⊓ y * z ≤ (x * zᵒ ⊓ y) * z := by
+  convert right_modular y z x using 1 <;> rw [inf_comm]
+
+lemma bot_mul_of_le_one {x : L} [OrderBot L] (h : x * ⊥ ≤ 1) : x * ⊥ = ⊥ := by
+  nth_grw 1 [eq_bot_iff, ← inf_eq_left.mpr h, right_modular, conv_bot, one_mul, inf_bot_eq,
+    bot_le (a := 1), one_mul]
 
 lemma inf_mul_le (x y z : L) : (x ⊓ y) * z ≤ x * z ⊓ y * z := by
   apply le_inf <;> apply mul_left_mono
@@ -211,6 +220,12 @@ lemma under_top_mul_mul_top [OrderTop L] (x y : L) : (x \\ y * ⊤) * ⊤ = x \\
 lemma top_mul_mul_top_over [OrderTop L] (x y : L) : ⊤ * (⊤ * x // y) = ⊤ * x // y := by
   refine le_antisymm ?_ (le_top_mul ..)
   grw [le_over_iff, mul_assoc, over_mul_le, ← mul_assoc, le_top (a := ⊤ * ⊤)]
+
+lemma over_mul_over_le (x y z : L) : (x // y) * (y // z) ≤ x // z := by
+  grw [le_over_iff, mul_assoc, over_mul_le, over_mul_le]
+
+lemma under_mul_under_le (x y z : L) : (x \\ y) * (y \\ z) ≤ x \\ z := by
+  grw [le_under_iff, ← mul_assoc, mul_under_le, mul_under_le]
 
 end DivisionAllegory
 

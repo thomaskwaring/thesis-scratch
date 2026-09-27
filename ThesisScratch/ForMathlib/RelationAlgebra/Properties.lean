@@ -117,6 +117,12 @@ instance allTrans_under_self (x : L) : AllTrans (x \\ x) where
     rw [le_under_iff, ←mul_assoc]
     exact mul_left_mono (mul_under_le x x) |>.trans (mul_under_le x x)
 
+@[simp] lemma over_self_mul_self (x : L) : (x // x) * x = x :=
+  (over_mul_le x x).antisymm (mul_left_ge ..)
+
+@[simp] lemma self_mul_under_self (x : L) : x * (x \\ x) = x :=
+  (mul_under_le x x).antisymm (mul_right_ge ..)
+
 end Monad
 
 end Properties
