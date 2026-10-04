@@ -236,16 +236,12 @@ lemma coe_le_coe {r s : P.Carrier} : (↑r : SetRel X X) ≤ s ↔ r ≤ s := If
 lemma coe_mul {r s : P.Carrier} : r * s = (r : SetRel X X) * s := rfl
 
 instance booleanAllegory' (P : ProperRelationAlgebra X) : BooleanAllegory' P.Carrier where
-  elim := by
-    intro ⟨r, _⟩ ⟨s, _⟩ ⟨s', _⟩ (h : s ⊆ s')
-    rw [← coe_le_coe]
-    exact mul_right_mono h
+  elim _ _ _ h := coe_le_coe.mp <| mul_right_mono h
   conv r := ⟨r.val.inv, P.inv_mem' r.prop⟩
   conv_le_iff_le_conv := by grind [=_ coe_le_coe, SetRel.inv]
-  conv_mul r s := Subtype.ext <| SetRel.inv_comp ..
-  left_modular := by
-    intro ⟨r, _⟩ ⟨s, _⟩ ⟨t, _⟩ ⟨x, y⟩ ⟨⟨z, hr, hs⟩, ht⟩
-    use z, hr, hs, x, hr
+  conv_mul _ _ := Subtype.ext <| SetRel.inv_comp ..
+  left_modular
+    | ⟨r, _⟩, ⟨s, _⟩, ⟨t, _⟩, ⟨x, y⟩, ⟨⟨z, hr, hs⟩, ht⟩ => ⟨z, hr, hs, x, hr, ht⟩
   mul_sup := by
     intro ⟨r, _⟩ ⟨s, _⟩ ⟨t, _⟩
     apply Subtype.ext
