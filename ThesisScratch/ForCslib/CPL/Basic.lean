@@ -145,11 +145,8 @@ def cutFree : {Γ Δ : Conc Atom} → Proof Γ Δ → Bool
   | _, _, orL π ρ => π.cutFree && ρ.cutFree
   | _, _, orR π => π.cutFree
 
-def_wanted cutExternal :
-    {Γ Δ : Conc Atom} → {A : Prp Atom} → Proof Γ (A :: Δ) →  Proof (A :: Γ) Δ → Proof Γ Δ
-
-theorem_wanted cutExternal_correct {π : Proof Γ (A :: Δ)} {π' : Proof (A :: Γ) Δ}
-    (h : π.cutFree = true) (h' : π'.cutFree = true) : (❰cutExternal❱ π π').cutFree = true
+def_wanted cutExternal : {Γ Δ : Conc Atom} → {A : Prp Atom} → (π₁ : Proof Γ (A :: Δ)) → π₁.cutFree →
+    (π₂ : Proof (A :: Γ) Δ) → π₂.cutFree → {π : Proof Γ Δ // π.cutFree}
 
 end CutElim
 
@@ -187,7 +184,7 @@ theorem consistency (π : @Proof Atom [] []) : False := by
   classical
   simpa using π.sound (fun _ ↦ True)
 
-def_wanted complete {A : Prp Atom} (h : ∀ (v : Atom → Bool), A.interp v = true) : Proof [] [A]
+section FlipCompleteness
 
 def Prp.flipFor (A : Prp Atom) (v : Atom → Bool) : Prp Atom :=
     if A.interp v then A else ¬ A
@@ -243,60 +240,55 @@ def ofForallInterpTrue [DecidableEq Atom] (A : Prp Atom)
     flipForOfAtoms (A := A) (xs := A.atoms.dedup) v (by simp [mem_atoms_iff]) |>.copy
       rfl (by simp [flipFor, hA v])
 
-def axOrCountermodel [DecidableEq Atom] {Γ Δ : Conc Atom} (hΓ : Γ.atomic) (hΔ : Δ.atomic) :
-    {π : Proof Γ Δ // π.cutFree = true} ⊕
-    {v : Atom → Bool // (∀ A ∈ Γ, A.interp v = true) ∧ (∀ B ∈ Δ, B.interp v = false)} :=
-  match findCommon Γ Δ with
-  | PSum.inl ⟨A, hAΓ, hAΔ⟩ => Sum.inl ⟨Proof.axMem hAΓ hAΔ, rfl⟩
-  | PSum.inr h => Sum.inr ⟨fun x => if atom x ∈ Γ then true else false, by
-    intro A hA
-    obtain ⟨x, rfl⟩ : ∃ x, atom x = A := exists_atom_eq hA hΓ
-    simp [interp, hA], by
-    intro B hB
-    obtain ⟨x, rfl⟩ : ∃ x, atom x = B := exists_atom_eq hB hΔ
-    have : ¬ atom x ∈ Γ := fun hB' ↦ h _ hB' _ hB rfl
-    simp [interp, this]
-  ⟩
+end FlipCompleteness
+
+section Tableau
 
 def proofOrCountermodel [DecidableEq Atom] (Γ Δ : Conc Atom) : {π : Proof Γ Δ // π.cutFree = true} ⊕
     {v : Atom → Bool // (∀ A ∈ Γ, A.interp v = true) ∧ (∀ B ∈ Δ, B.interp v = false)} :=
   match atomic_cases Γ with
   | .inl hΓ =>
     match atomic_cases Δ with
-    | .inl hΔ => axOrCountermodel hΓ hΔ
+    | .inl hΔ => match findCommon Γ Δ with
+      | PSum.inl ⟨A, hΓ, hΔ⟩ => Sum.inl ⟨Proof.axMem hΓ hΔ, rfl⟩
+      | PSum.inr h =>
+        Sum.inr ⟨fun x => if atom x ∈ Γ then true else false, by
+          intro A hA
+          obtain ⟨x, rfl⟩ : ∃ x, atom x = A := exists_atom_eq hA hΓ
+          simp [interp, hA], by
+          intro B hB
+          obtain ⟨x, rfl⟩ : ∃ x, atom x = B := exists_atom_eq hB hΔ
+          have : ¬ atom x ∈ Γ := fun hB' ↦ h _ hB' _ hB rfl
+          simp [interp, this]
+        ⟩
     | .inr (.inl ⟨⟨Δ', A, B⟩, (h : (A ∨ B) :: Δ' ~ Δ)⟩) =>
-      have : Conc.size (A :: B :: Δ') < Δ.size := by grind [Conc.size_perm h.symm]
+      have : Conc.size (A :: B :: Δ') < Δ.size := by grind
       match proofOrCountermodel Γ (A :: B :: Δ') with
       | .inl ⟨π, hπ⟩ => .inl ⟨π.orR.exR h, hπ⟩
-      | .inr ⟨v, hΓ, hΔ⟩ => .inr ⟨v, hΓ, by
-          simp_rw [← h.mem_iff, List.mem_cons]
-          rintro B (rfl | hB)
-          · simp [interp, hΔ A mem_cons_self, hΔ B (by grind)]
-          · exact hΔ B (by grind)
-        ⟩
+      | .inr ⟨v, hΓ, hΔ⟩ => .inr ⟨v, hΓ, by grind [← h.mem_iff, interp]⟩
     | .inr (.inr ⟨⟨Δ', A⟩, (h : (¬ A) :: Δ' ~ Δ)⟩) =>
-      have : Conc.size (A :: Γ) + Δ'.size < Γ.size + Δ.size := by grind [Conc.size_perm h.symm]
+      have : Conc.size (A :: Γ) + Δ'.size < Γ.size + Δ.size := by grind
       match proofOrCountermodel (A :: Γ) Δ' with
       | .inl ⟨π, hπ⟩ => .inl ⟨π.negR.exR h, hπ⟩
-      | .inr ⟨v, hΓ, hΔ⟩ => .inr ⟨v, fun A' hA' ↦ hΓ A' (List.mem_cons_of_mem A hA') , by
+      | .inr ⟨v, hΓ, hΔ⟩ => .inr ⟨v, fun A' hA' ↦ hΓ A' (List.mem_cons_of_mem A hA'), by
           simp_rw [← h.mem_iff, List.mem_cons]
           rintro B (rfl | hB)
           · simp [interp, hΓ A mem_cons_self]
           · exact hΔ B hB
         ⟩
   | .inr (.inl ⟨⟨Γ', A, B⟩, (h : (A ∨ B) :: Γ' ~ Γ)⟩) =>
-    have : Conc.size (A :: Γ') < Γ.size := by grind [Conc.size_perm h.symm]
-    have : Conc.size (B :: Γ') < Γ.size := by grind [Conc.size_perm h.symm]
+    have : Conc.size (A :: Γ') < Γ.size := by grind
+    have : Conc.size (B :: Γ') < Γ.size := by grind
     match proofOrCountermodel (A :: Γ') Δ with
     | .inl ⟨π, hπ⟩ =>
       match proofOrCountermodel (B :: Γ') Δ with
       | .inl ⟨ρ, hρ⟩ => .inl ⟨(π.orL ρ).exL h, by simp [Proof.cutFree, Proof.exL, hπ, hρ]⟩
       | .inr ⟨v, hΓ, hΔ⟩ => .inr ⟨v, by {
-        simp_rw [← h.mem_iff, List.mem_cons]
-        rintro A (rfl | hA)
-        · simp [interp, hΓ B mem_cons_self]
-        · exact hΓ A (List.mem_cons_of_mem _ hA)
-      }, hΔ⟩
+          simp_rw [← h.mem_iff, List.mem_cons]
+          rintro A (rfl | hA)
+          · simp [interp, hΓ B mem_cons_self]
+          · exact hΓ A (List.mem_cons_of_mem _ hA)
+        }, hΔ⟩
     | .inr ⟨v, hΓ, hΔ⟩ => .inr ⟨v, by {
       simp_rw [← h.mem_iff, List.mem_cons]
       rintro A (rfl | hA)
@@ -304,7 +296,7 @@ def proofOrCountermodel [DecidableEq Atom] (Γ Δ : Conc Atom) : {π : Proof Γ 
       · exact hΓ A (List.mem_cons_of_mem _ hA)
       }, hΔ⟩
   | .inr (.inr ⟨⟨Γ', A⟩, (h : (¬ A) :: Γ' ~ Γ)⟩) =>
-    have : Γ'.size + Conc.size (A :: Δ) < Γ.size + Δ.size := by grind [Conc.size_perm h.symm]
+    have : Γ'.size + Conc.size (A :: Δ) < Γ.size + Δ.size := by grind
     match proofOrCountermodel Γ' (A :: Δ) with
     | .inl ⟨π, hπ⟩ => .inl ⟨π.negL.exL h, hπ⟩
     | .inr ⟨v, hΓ, hΔ⟩ => .inr ⟨v, by {
@@ -326,6 +318,8 @@ def cutElim [DecidableEq Atom] {Γ Δ : Conc Atom} (π : Proof Γ Δ) :
       simpa
     · rw [← bot_eq_false, Eq.comm, Finset.sup_eq_bot_iff]
       simpa
+
+end Tableau
 
 end Semantics
 

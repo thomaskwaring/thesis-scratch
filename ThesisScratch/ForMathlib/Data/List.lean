@@ -58,6 +58,13 @@ lemma dedup_cons_perm : (x :: l).dedup ~ x :: l.dedup.erase x := by
     exact perm_cons_erase (mem_dedup.mpr h)
   · simp [dedup_cons_of_notMem h, erase_of_not_mem (notMem_dedup.mpr h)]
 
+def findCommon (l₁ l₂ : List α) : {x // x ∈ l₁ ∧ x ∈ l₂} ⊕' ∀ x ∈ l₁, ∀ y ∈ l₂, x ≠ y :=
+  match h : (l₁ ∩ l₂).head? with
+  | none => PSum.inr <| by
+    rw [head?_eq_none_iff, inter_eq_nil_iff_disjoint] at h
+    exact List.disjoint_iff_ne.mp h
+  | some A => PSum.inl ⟨A, mem_inter_iff.mp <| mem_of_head? h⟩
+
 end DecidableEq
 
 lemma subperm_iff' : l₁ <+~ l₂ ↔ ∃ l, l ~ l₂ ∧ l₁ <+: l := by

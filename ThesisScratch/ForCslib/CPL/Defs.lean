@@ -70,7 +70,7 @@ lemma finite_setOf_isPresent {A : Prp Atom} : Set.Finite {x | A.IsPresent x} := 
 
 def bigOr [Inhabited Atom] (As : List (Prp Atom)) : Prp Atom := As.foldr (· ∨ ·) ⊥
 
-def bigAnd [Inhabited Atom] (As : List (Prp Atom)) : Prp Atom := ¬ (bigOr <| (As.map (¬ ·)))
+def bigAnd [Inhabited Atom] (As : List (Prp Atom)) : Prp Atom := ¬ (bigOr <| As.map (¬ ·))
 
 end Prp
 
@@ -83,6 +83,7 @@ def Conc.size (Γ : Conc Atom) : ℕ := (Γ.map Prp.size).sum
 @[grind =]
 lemma Conc.size_cons (A : Prp Atom) (Γ : Conc Atom) : Conc.size (A :: Γ) = A.size + Γ.size := rfl
 
+@[grind →]
 lemma Conc.size_perm {Γ Γ' : Conc Atom} (h : Γ ~ Γ') : Γ.size = Γ'.size :=
   (h.map Prp.size).sum_nat
 
@@ -97,7 +98,7 @@ lemma exists_atom_eq {Γ : Conc Atom} {A : Prp Atom} (hA : A ∈ Γ) (hΓ : Γ.a
     specialize hΓ _ hA
     simp [Prp.atomic] at hΓ
 
-def cases_atomic_false (Γ : Conc Atom) (hΓ : Γ.atomic = false) :
+private def cases_atomic_false (Γ : Conc Atom) (hΓ : Γ.atomic = false) :
     {p : Conc Atom × Prp Atom × Prp Atom // ((p.2.1 ∨ p.2.2) :: p.1).Perm Γ} ⊕
       {p : Conc Atom × Prp Atom // ((¬ p.2) :: p.1).Perm Γ} :=
   match Γ with
@@ -120,13 +121,5 @@ def atomic_cases (Γ : Conc Atom) :
   match hΓ : Γ.atomic with
   | true => PSum.inl rfl
   | false => PSum.inr (cases_atomic_false Γ hΓ)
-
-def findCommon [DecidableEq Atom] (Γ Δ : Conc Atom) :
-    {A : Prp Atom // A ∈ Γ ∧ A ∈ Δ} ⊕' ∀ A ∈ Γ, ∀ B ∈ Δ, A ≠ B :=
-  match h : (Γ ∩ Δ).head? with
-  | none => PSum.inr <| by
-    rw [head?_eq_none_iff, inter_eq_nil_iff_disjoint] at h
-    exact List.disjoint_iff_ne.mp h
-  | some A => PSum.inl ⟨A, mem_inter_iff.mp <| mem_of_head? h⟩
 
 end CPL
